@@ -20,6 +20,20 @@ interface Tree {
   nodes: Node[];
 }
 
+// Placeholder titles for nodes
+const defaultNodePlaceholders = [
+  'ケテル (王冠)',
+  'コクマー (知恵)',
+  'ビナー (理解)',
+  'ケセド (慈悲)',
+  'ゲブラー (峻厳)',
+  'ティファレト (美)',
+  'ネツァク (勝利)',
+  'ホド (栄光)',
+  'イェソド (基礎)',
+  'マルクト (王国)',
+];
+
 // Node positions based on the wireframe
 const nodePositions: { [key: number]: { top: string; left: string; transform: string } } = {
   1: { top: '0%', left: '50%', transform: 'translateX(-50%)' },
@@ -280,7 +294,9 @@ export default function TreeEditPage() {
               style={nodePositions[node.position]}
               onClick={() => handleNodeClick(node)}
             >
-              <span className="node-text text-sm font-medium text-gray-700 pointer-events-none">{node.title}</span>
+              <span className={`node-text text-sm font-medium pointer-events-none ${node.title ? 'text-gray-700' : 'text-gray-400'}`}>
+  {node.title || defaultNodePlaceholders[node.position - 1]}
+</span>
             </div>
           ))}
         </div>
@@ -293,6 +309,7 @@ export default function TreeEditPage() {
           onClose={() => setIsModalOpen(false)}
           node={selectedNode}
           onSave={handleModalSave}
+          placeholder={defaultNodePlaceholders[selectedNode.position - 1]}
         />
       )}
     </div>
@@ -304,9 +321,10 @@ interface EditNodeModalProps {
   onClose: () => void;
   node: Node;
   onSave: (title: string, details: string) => void;
+  placeholder: string;
 }
 
-function EditNodeModal({ isOpen, onClose, node, onSave }: EditNodeModalProps) {
+function EditNodeModal({ isOpen, onClose, node, onSave, placeholder }: EditNodeModalProps) {
   const [title, setTitle] = useState(node.title);
   const [details, setDetails] = useState(node.details || '');
   const supabase = createClient();
@@ -327,7 +345,7 @@ function EditNodeModal({ isOpen, onClose, node, onSave }: EditNodeModalProps) {
       return;
     }
 
-    const newTreeTitle = title;
+    const newTreeTitle = title || placeholder; // Use placeholder if title is empty
     const { data, error } = await supabase
       .from('trees')
       .insert({
@@ -343,35 +361,12 @@ function EditNodeModal({ isOpen, onClose, node, onSave }: EditNodeModalProps) {
     } else if (data) {
       // Tree created successfully, now create a default root node for it
       const newTreeId = data.id;
-      const nodesToInsert = [];
-
-      const defaultNodeTitles = [
-        "ケテル (王冠)", // This will be replaced by node.title for position 1
-        "コクマー (知恵)",
-        "ビナー (理解)",
-        "ケセド (慈悲)",
-        "ゲブラー (峻厳)",
-        "ティファレト (美)",
-        "ネツァク (勝利)",
-        "ホド (栄光)",
-        "イェソド (基礎)",
-        "マルクト (王国)",
-      ];
-
-      // Create 10 default nodes for the new tree
-      for (let i = 1; i <= 10; i++) {
-        let nodeTitleToUse = defaultNodeTitles[i - 1];
-        if (i === 1) { // For the first node (Keter)
-          nodeTitleToUse = title; // Use the current title from the modal's state
-        }
-
-        nodesToInsert.push({
-          tree_id: newTreeId,
-          title: nodeTitleToUse,
-          position: i,
-          details: null,
-        });
-      }
+      const nodesToInsert = Array.from({ length: 10 }, (_, i) => ({
+        tree_id: newTreeId,
+        title: '', // Always insert empty string for new nodes
+        position: i + 1,
+        details: null,
+      }));
 
       const { error: nodesError } = await supabase
         .from('nodes')
@@ -401,6 +396,7 @@ function EditNodeModal({ isOpen, onClose, node, onSave }: EditNodeModalProps) {
               id="node-text-input"
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500"
               value={title}
+              placeholder={placeholder}
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>

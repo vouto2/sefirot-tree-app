@@ -54,8 +54,8 @@ export default function CreateTreeModal({ isOpen, onClose, onTreeCreated }: Crea
       'マルクト (王国)',
     ];
 
-    const nodesToInsert = defaultNodeTitles.map((nodeTitle, index) => ({
-      title: nodeTitle,
+    const nodesToInsert = defaultNodeTitles.map((_, index) => ({
+      title: '',
       position: index + 1,
       tree_id: treeData.id,
     }));
