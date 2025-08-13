@@ -1,19 +1,84 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 
 interface CreateTreeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onTreeCreated: () => void;
+  initialTemplateId?: string;
 }
 
-export default function CreateTreeModal({ isOpen, onClose, onTreeCreated }: CreateTreeModalProps) {
+interface Template {
+  id: string;
+  name: string;
+  description: string | null;
+  template_nodes: TemplateNode[];
+}
+
+interface TemplateNode {
+  id: string;
+  template_id: string;
+  position: number;
+  title: string;
+  details_placeholder: string | null;
+}
+
+export default function CreateTreeModal({ isOpen, onClose, onTreeCreated, initialTemplateId }: CreateTreeModalProps) {
   const [title, setTitle] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(initialTemplateId || '');
   const supabase = createClient();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchTemplates = async () => {
+        const { data, error: fetchError } = await supabase
+          .from('templates')
+          .select(`
+            *,
+            template_nodes(*)
+          `)
+          .order('created_at', { ascending: false });
+
+        if (fetchError) {
+          setError(`テンプレートの取得中にエラーが発生しました: ${fetchError.message}`);
+          console.error('Error fetching templates:', fetchError);
+        } else {
+          setTemplates(data || []);
+          if (initialTemplateId) {
+            const initialTemplate = (data || []).find(t => t.id === initialTemplateId);
+            if (initialTemplate) {
+              setTitle(initialTemplate.name || initialTemplate.description || '');
+            }
+          }
+        }
+      };
+      fetchTemplates();
+    } else {
+      setTitle('');
+      setError(null);
+      setTemplates([]);
+      setSelectedTemplateId('');
+    }
+  }, [isOpen, supabase, initialTemplateId]);
+
+  const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const templateId = e.target.value;
+    setSelectedTemplateId(templateId);
+    const selectedTemplate = templates.find(t => t.id === templateId);
+
+    if (selectedTemplate) {
+      setTitle(selectedTemplate.name || selectedTemplate.description || '');
+    } else {
+      setTitle('');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,25 +105,31 @@ export default function CreateTreeModal({ isOpen, onClose, onTreeCreated }: Crea
       return;
     }
 
-    // Create 10 default nodes for the new tree
-    const defaultNodeTitles = [
-      'ケテル (王冠)',
-      'コクマー (知恵)',
-      'ビナー (理解)',
-      'ケセド (慈悲)',
-      'ゲブラー (峻厳)',
-      'ティファレト (美)',
-      'ネツァク (勝利)',
-      'ホド (栄光)',
-      'イェソド (基礎)',
-      'マルクト (王国)',
-    ];
+    const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
-    const nodesToInsert = defaultNodeTitles.map((_, index) => ({
-      title: '',
-      position: index + 1,
+    const nodesToInsert = selectedTemplate?.template_nodes.map(node => ({
+      title: node.title,
+      details: null, // Keep details as null initially
+      details_placeholder: node.details_placeholder, // Add details_placeholder
+      position: node.position,
       tree_id: treeData.id,
-    }));
+    })) || [];
+
+    if (nodesToInsert.length === 0) {
+      const defaultNodeTitles = [
+        'ケテル (王冠)', 'コクマー (知恵)', 'ビナー (理解)', 'ケセド (慈悲)', 'ゲブラー (峻厳)',
+        'ティファレト (美)', 'ネツァク (勝利)', 'ホド (栄光)', 'イェソド (基礎)', 'マルクト (王国)',
+      ];
+      for (let i = 0; i < 10; i++) {
+        nodesToInsert.push({
+          title: defaultNodeTitles[i],
+          details: null,
+          details_placeholder: null, // Add details_placeholder for default nodes
+          position: i + 1,
+          tree_id: treeData.id,
+        });
+      }
+    }
 
     const { error: insertNodesError } = await supabase
       .from('nodes')
@@ -66,14 +137,14 @@ export default function CreateTreeModal({ isOpen, onClose, onTreeCreated }: Crea
 
     if (insertNodesError) {
       setError(insertNodesError.message);
-      // Consider rolling back tree creation here if nodes are essential
       setLoading(false);
       return;
     }
 
     setTitle('');
-    onTreeCreated(); // Notify parent component that a tree was created
-    onClose(); // Close the modal
+    setSelectedTemplateId('');
+    onTreeCreated();
+    onClose();
 
     setLoading(false);
   };
@@ -85,6 +156,25 @@ export default function CreateTreeModal({ isOpen, onClose, onTreeCreated }: Crea
       <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
         <h2 className="text-2xl font-bold mb-6 text-gray-900">新しい「生命の樹」を作成</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="template-select" className="block text-sm font-medium text-gray-700">
+              テンプレートを選択:
+            </label>
+            <select
+              id="template-select"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500"
+              value={selectedTemplateId}
+              onChange={handleTemplateChange}
+              disabled={loading}
+            >
+              <option value="">テンプレートなし</option>
+              {templates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label htmlFor="tree-title" className="block text-sm font-medium text-gray-700">タイトル</label>
             <input

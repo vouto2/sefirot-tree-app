@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useParams } from 'next/navigation';
+// import CreateTemplateModal from '@/components/templates/CreateTemplateModal'; // Removed this import
 
 interface Node {
   id: string;
@@ -10,6 +11,7 @@ interface Node {
   details: string | null;
   position: number;
   tree_id: string;
+  details_placeholder: string | null; // Added
 }
 
 interface Tree {
@@ -70,7 +72,7 @@ export default function TreeEditPage() {
   const [tree, setTree] = useState<Tree | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isNodeModalOpen, setIsNodeModalOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
 
   const treeContainerRef = useRef<HTMLDivElement>(null);
@@ -79,7 +81,7 @@ export default function TreeEditPage() {
     setLoading(true);
     setError(null);
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } = { session: null } } = await supabase.auth.getSession();
     const user = session?.user;
     if (!user) {
       router.push('/auth');
@@ -123,7 +125,7 @@ export default function TreeEditPage() {
   }, [fetchTreeData]);
 
   const drawLines = useCallback(() => {
-    const treeContainer = treeContainerRef.current; // Use ref here
+    const treeContainer = treeContainerRef.current;
     if (!treeContainer) {
       return;
     }
@@ -151,7 +153,7 @@ export default function TreeEditPage() {
       const angleRad = Math.atan2(y2 - y1, x2 - x1);
       const angleDeg = angleRad * 180 / Math.PI;
       
-      const nodeRadius = fromRect.width / 2; // Assuming all nodes have the same radius
+      const nodeRadius = fromRect.width / 2;
 
       const new_x1 = x1 + nodeRadius * Math.cos(angleRad);
       const new_y1 = y1 + nodeRadius * Math.sin(angleRad);
@@ -163,7 +165,7 @@ export default function TreeEditPage() {
       line.classList.add('line');
       line.style.width = `${new_length}px`;
       line.style.height = '2px';
-      line.style.background = '#9ca3af'; // gray-400
+      line.style.background = '#9ca3af';
       line.style.position = 'absolute';
       line.style.left = `${new_x1}px`;
       line.style.top = `${new_y1}px`;
@@ -190,7 +192,7 @@ export default function TreeEditPage() {
 
   const handleNodeClick = (node: Node) => {
     setSelectedNode(node);
-    setIsModalOpen(true);
+    setIsNodeModalOpen(true);
   };
 
   const handleModalSave = async (updatedTitle: string, updatedDetails: string) => {
@@ -207,7 +209,6 @@ export default function TreeEditPage() {
     if (updateError) {
       setError(updateError.message);
     } else {
-      // Update local state to reflect changes
       setTree(prevTree => {
         if (!prevTree) return null;
         const updatedNodes = prevTree.nodes.map(node =>
@@ -215,7 +216,7 @@ export default function TreeEditPage() {
         );
         return { ...prevTree, nodes: updatedNodes };
       });
-      setIsModalOpen(false);
+      setIsNodeModalOpen(false);
       setSelectedNode(null);
     }
     setLoading(false);
@@ -234,7 +235,8 @@ export default function TreeEditPage() {
 
     if (updateError) {
       setError(updateError.message);
-    } else {
+    }
+    else {
       setTree(prevTree => prevTree ? { ...prevTree, title: newTitle } : null);
     }
     setLoading(false);
@@ -275,7 +277,7 @@ export default function TreeEditPage() {
               onBlur={(e) => handleTreeTitleSave(e.target.value)}
             />
 
-            {/* 保存ボタン (自動保存のため不要だが、ワイヤーフレームにあるため残す) */}
+            {/* 保存ボタン */}
             <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors" onClick={() => handleTreeTitleSave(tree.title)}>
               保存
             </button>
@@ -294,22 +296,23 @@ export default function TreeEditPage() {
               style={nodePositions[node.position]}
               onClick={() => handleNodeClick(node)}
             >
-              <span className={`node-text text-sm font-medium pointer-events-none ${node.title ? 'text-gray-700' : 'text-gray-400'}`}>
-  {node.title || defaultNodePlaceholders[node.position - 1]}
+              <span className="node-text text-sm font-medium pointer-events-none text-gray-400">
+  {defaultNodePlaceholders[node.position - 1]}
 </span>
             </div>
           ))}
         </div>
       </main>
 
-      {/* Edit Modal */}
-      {isModalOpen && selectedNode && (
+      {/* Edit Node Modal */}
+      {isNodeModalOpen && selectedNode && (
         <EditNodeModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          isOpen={isNodeModalOpen}
+          onClose={() => setIsNodeModalOpen(false)}
           node={selectedNode}
           onSave={handleModalSave}
           placeholder={defaultNodePlaceholders[selectedNode.position - 1]}
+          nodeDetailsPlaceholder={selectedNode.details_placeholder} // Pass details_placeholder
         />
       )}
     </div>
@@ -322,9 +325,10 @@ interface EditNodeModalProps {
   node: Node;
   onSave: (title: string, details: string) => void;
   placeholder: string;
+  nodeDetailsPlaceholder: string | null; // Added
 }
 
-function EditNodeModal({ isOpen, onClose, node, onSave, placeholder }: EditNodeModalProps) {
+function EditNodeModal({ isOpen, onClose, node, onSave, placeholder, nodeDetailsPlaceholder }: EditNodeModalProps) {
   const [title, setTitle] = useState(node.title);
   const [details, setDetails] = useState(node.details || '');
   const supabase = createClient();
@@ -337,15 +341,15 @@ function EditNodeModal({ isOpen, onClose, node, onSave, placeholder }: EditNodeM
 
   const handleCreateChildTree = async () => {
     // Save the current node's changes first
-    await onSave(title, details); // This will save the title and details of the current node
+    await onSave(title, details);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } = { user: null } } = await supabase.auth.getUser();
     if (!user) {
       alert('ユーザーが認証されていません。');
       return;
     }
 
-    const newTreeTitle = title || placeholder; // Use placeholder if title is empty
+    const newTreeTitle = title || placeholder;
     const { data, error } = await supabase
       .from('trees')
       .insert({
@@ -359,11 +363,10 @@ function EditNodeModal({ isOpen, onClose, node, onSave, placeholder }: EditNodeM
     if (error) {
       alert(`新しい樹の作成に失敗しました: ${error.message}`);
     } else if (data) {
-      // Tree created successfully, now create a default root node for it
       const newTreeId = data.id;
       const nodesToInsert = Array.from({ length: 10 }, (_, i) => ({
         tree_id: newTreeId,
-        title: '', // Always insert empty string for new nodes
+        title: '',
         position: i + 1,
         details: null,
       }));
@@ -374,10 +377,10 @@ function EditNodeModal({ isOpen, onClose, node, onSave, placeholder }: EditNodeM
 
       if (nodesError) {
         alert(`ノードの作成に失敗しました: ${nodesError.message}`);
-        // Optionally, delete the newly created tree if node creation fails
-      } else {
-        onClose(); // Close current modal
-        router.push(`/trees/${newTreeId}/edit`); // Navigate to new tree's edit page
+      }
+      else {
+        onClose();
+        router.push(`/trees/${newTreeId}/edit`);
       }
     }
   };
@@ -395,9 +398,7 @@ function EditNodeModal({ isOpen, onClose, node, onSave, placeholder }: EditNodeM
               type="text"
               id="node-text-input"
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500"
-              value={title}
-              placeholder={placeholder}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => setTitle(e.target.value)}              placeholder={placeholder}
             />
           </div>
           <div>
@@ -405,9 +406,10 @@ function EditNodeModal({ isOpen, onClose, node, onSave, placeholder }: EditNodeM
             <textarea
               id="node-details-input"
               rows={4}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500" 
               value={details}
               onChange={(e) => setDetails(e.target.value)}
+              placeholder={nodeDetailsPlaceholder || ''} // Use nodeDetailsPlaceholder
             ></textarea>
           </div>
           <div className="mt-6 flex justify-between items-center">

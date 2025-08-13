@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation'; // Import useSearchParams
 import CreateTreeModal from '@/components/trees/CreateTreeModal';
 
 interface Tree {
@@ -17,9 +17,10 @@ export default function TreesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [showDropdownId, setShowDropdownId] = useState<string | null>(null); // New state
+  const [showDropdownId, setShowDropdownId] = useState<string | null>(null);
   const supabase = createClient();
   const router = useRouter();
+  const searchParams = useSearchParams(); // Initialize useSearchParams
 
   const fetchTrees = useCallback(async () => {
     setLoading(true);
@@ -31,7 +32,6 @@ export default function TreesPage() {
       return;
     }
 
-    // Debugging: Log user ID
     console.log('Fetching trees for user ID:', user.id);
 
     const { data, error } = await supabase
@@ -44,7 +44,6 @@ export default function TreesPage() {
       console.error('Error fetching trees:', error);
     } else {
       setTrees(data || []);
-      // Debugging: Log fetched data
       console.log('Fetched trees data:', data);
     }
     setLoading(false);
@@ -55,10 +54,17 @@ export default function TreesPage() {
   }, [fetchTrees]);
 
   useEffect(() => {
+    const templateId = searchParams.get('templateId');
+    if (templateId) {
+      setIsCreateModalOpen(true);
+      // Optionally, remove the templateId from the URL after opening the modal
+      // router.replace('/trees', undefined, { shallow: true });
+    }
+  }, [searchParams]); // Depend on searchParams
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Check if the click is outside any dropdown
-      // This is a simplified check, a more robust solution might involve refs
-      if (showDropdownId && !(event.target as HTMLElement).closest('.relative')) { // Assuming .relative is the parent of the dropdown
+      if (showDropdownId && !(event.target as HTMLElement).closest('.relative')) {
         setShowDropdownId(null);
       }
     };
@@ -74,7 +80,7 @@ export default function TreesPage() {
   };
 
   const handleTreeCreated = () => {
-    fetchTrees(); // Re-fetch trees after a new one is created
+    fetchTrees();
   };
 
   const handleCardClick = (id: string) => {
@@ -82,11 +88,10 @@ export default function TreesPage() {
   };
 
   const handleUserMenuClick = () => {
-    // Placeholder for user menu (e.g., logout)
     alert('ユーザーメニューがクリックされました。');
   };
 
-  const handleDeleteTree = async (treeId: string) => { // New function
+  const handleDeleteTree = async (treeId: string) => {
     if (window.confirm('本当にこの樹を削除しますか？関連するノードもすべて削除されます。')) {
       setLoading(true);
       setError(null);
@@ -100,14 +105,14 @@ export default function TreesPage() {
           setError(`樹の削除中にエラーが発生しました: ${error.message}`);
           console.error('Error deleting tree:', error);
         } else {
-          fetchTrees(); // Re-fetch trees after deletion
+          fetchTrees();
         }
       } catch (err: any) {
         setError(`予期せぬエラーが発生しました: ${err.message}`);
         console.error('Unexpected error during tree deletion:', err);
       } finally {
         setLoading(false);
-        setShowDropdownId(null); // Close dropdown
+        setShowDropdownId(null);
       }
     }
   };
@@ -152,11 +157,11 @@ export default function TreesPage() {
                   <h3 className="text-lg font-bold text-gray-900">{tree.title}</h3>
                   <p className="text-xs text-gray-500 mt-1 sm:hidden">最終更新: {new Date(tree.updated_at).toLocaleDateString()}</p>
                 </div>
-                <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex justify-end relative"> {/* Added relative positioning */}
+                <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex justify-end relative"> 
                   <button
                     className="p-2 rounded-full hover:bg-gray-200"
                     onClick={(e) => {
-                      e.stopPropagation(); // Prevent card click
+                      e.stopPropagation(); 
                       setShowDropdownId(showDropdownId === tree.id ? null : tree.id);
                     }}
                   >
@@ -169,7 +174,7 @@ export default function TreesPage() {
                       <button
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={(e) => {
-                          e.stopPropagation(); // Prevent card click
+                          e.stopPropagation(); 
                           handleDeleteTree(tree.id);
                         }}
                       >
@@ -201,6 +206,7 @@ export default function TreesPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onTreeCreated={handleTreeCreated}
+        initialTemplateId={searchParams.get('templateId') || undefined} // Pass templateId
       />
     </div>
   );
