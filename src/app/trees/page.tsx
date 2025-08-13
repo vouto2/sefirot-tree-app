@@ -87,7 +87,7 @@ export default function TreesPage() {
   };
 
   const handleDeleteTree = async (treeId: string) => { // New function
-    if (window.confirm('本当にこのノートを削除しますか？関連するノードもすべて削除されます。')) {
+    if (window.confirm('本当にこの樹を削除しますか？関連するノードもすべて削除されます。')) {
       setLoading(true);
       setError(null);
       try {
@@ -125,7 +125,7 @@ export default function TreesPage() {
       {/* メインコンテンツ */}
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">あなたの「セフィロトノート」一覧</h2>
+          <h2 className="text-2xl font-bold text-gray-900">あなたの「生命の樹」一覧</h2>
           {/* 新規作成ボタン (PCのみ表示) */}
           <button
             className="hidden sm:flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm"
@@ -139,7 +139,7 @@ export default function TreesPage() {
         </div>
 
         {trees.length === 0 ? (
-          <p className="text-gray-600">まだ「セフィロトノート」がありません。新規作成ボタンから作成しましょう！</p>
+          <p className="text-gray-600">まだ「生命の樹」がありません。新規作成ボタンから作成しましょう！</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {trees.map((tree) => (

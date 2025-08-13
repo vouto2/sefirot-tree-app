@@ -83,7 +83,7 @@ export default function CreateTreeModal({ isOpen, onClose, onTreeCreated }: Crea
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
       <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-gray-900">新しい「セフィロトノート」を作成</h2>
+        <h2 className="text-2xl font-bold mb-6 text-gray-900">新しい「生命の樹」を作成</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="tree-title" className="block text-sm font-medium text-gray-700">タイトル</label>
