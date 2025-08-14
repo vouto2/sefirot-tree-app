@@ -206,7 +206,7 @@ export default function TreeEditPage() {
         window.removeEventListener('resize', drawLines);
       };
     }
-  }, [tree]);
+  }, [tree, drawLines]);
 
   const handleNodeClick = (node: Node) => {
     setSelectedNode(node);
