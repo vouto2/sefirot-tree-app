@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, Suspense } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CreateTreeModal from '@/components/trees/CreateTreeModal';
+import EditTreeTitleModal from '@/components/trees/EditTreeTitleModal';
 
 interface Tree {
   id: string;
@@ -18,6 +19,8 @@ function TreesClientView() {
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [showDropdownId, setShowDropdownId] = useState<string | null>(null);
+  const [isEditTitleModalOpen, setIsEditTitleModalOpen] = useState(false);
+  const [editingTree, setEditingTree] = useState<Tree | null>(null);
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -75,6 +78,16 @@ function TreesClientView() {
 
   const handleTreeCreated = () => {
     fetchTrees();
+  };
+
+  const handleEditTreeTitleClick = (tree: Tree) => {
+    setEditingTree(tree);
+    setIsEditTitleModalOpen(true);
+    setShowDropdownId(null); // ドロップダウンを閉じる
+  };
+
+  const handleTitleUpdated = () => {
+    fetchTrees(); // ツリー一覧を再取得
   };
 
   const handleCardClick = (id: string) => {
@@ -168,6 +181,15 @@ function TreesClientView() {
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={(e) => {
                           e.stopPropagation(); 
+                          handleEditTreeTitleClick(tree);
+                        }}
+                      >
+                        ツリー名を変更
+                      </button>
+                      <button
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={(e) => {
+                          e.stopPropagation(); 
                           handleDeleteTree(tree.id);
                         }}
                       >
@@ -200,6 +222,15 @@ function TreesClientView() {
         onTreeCreated={handleTreeCreated}
         initialTemplateId={searchParams.get('templateId') || undefined}
       />
+      {editingTree && (
+        <EditTreeTitleModal
+          isOpen={isEditTitleModalOpen}
+          onClose={() => setIsEditTitleModalOpen(false)}
+          treeId={editingTree.id}
+          currentTitle={editingTree.title}
+          onTitleUpdated={handleTitleUpdated}
+        />
+      )}
     </div>
   );
 }
