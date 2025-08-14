@@ -51,12 +51,6 @@ export default function CreateTreeModal({ isOpen, onClose, onTreeCreated, initia
           console.error('Error fetching templates:', fetchError);
         } else {
           setTemplates(data || []);
-          if (initialTemplateId) {
-            const initialTemplate = (data || []).find(t => t.id === initialTemplateId);
-            if (initialTemplate) {
-              setTitle(initialTemplate.name || initialTemplate.description || '');
-            }
-          }
         }
       };
       fetchTemplates();
@@ -71,17 +65,14 @@ export default function CreateTreeModal({ isOpen, onClose, onTreeCreated, initia
   const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const templateId = e.target.value;
     setSelectedTemplateId(templateId);
-    const selectedTemplate = templates.find(t => t.id === templateId);
-
-    if (selectedTemplate) {
-      setTitle(selectedTemplate.name || selectedTemplate.description || '');
-    } else {
-      setTitle('');
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title.trim()) {
+      setError('タイトルは必須です。');
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -95,7 +86,7 @@ export default function CreateTreeModal({ isOpen, onClose, onTreeCreated, initia
 
     const { data: treeData, error: insertTreeError } = await supabase
       .from('trees')
-      .insert({ title, user_id: user.id })
+      .insert({ title, user_id: user.id, template_id: selectedTemplateId || null })
       .select()
       .single();
 
@@ -108,9 +99,8 @@ export default function CreateTreeModal({ isOpen, onClose, onTreeCreated, initia
     const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
     const nodesToInsert = selectedTemplate?.template_nodes.map(node => ({
-      title: node.title,
-      details: null, // Keep details as null initially
-      details_placeholder: node.details_placeholder, // Add details_placeholder
+      title: '',
+      details: null,
       position: node.position,
       tree_id: treeData.id,
     })) || [];
@@ -199,8 +189,8 @@ export default function CreateTreeModal({ isOpen, onClose, onTreeCreated, initia
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm"
-              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+              disabled={loading || !title.trim()}
             >
               {loading ? '作成中...' : '作成'}
             </button>

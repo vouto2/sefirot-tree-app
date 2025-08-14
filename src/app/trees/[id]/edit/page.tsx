@@ -11,7 +11,21 @@ interface Node {
   details: string | null;
   position: number;
   tree_id: string;
-  details_placeholder: string | null; // Added
+}
+
+interface TemplateNode {
+  id: string;
+  template_id: string;
+  position: number;
+  title: string;
+  details_placeholder: string | null;
+}
+
+interface Template {
+  id: string;
+  name: string;
+  description: string | null;
+  template_nodes: TemplateNode[];
 }
 
 interface Tree {
@@ -20,6 +34,7 @@ interface Tree {
   user_id: string;
   parent_node_id: string | null;
   nodes: Node[];
+  templates: Template | null;
 }
 
 // Placeholder titles for nodes
@@ -44,10 +59,10 @@ const nodePositions: { [key: number]: { top: string; left: string; transform: st
   4: { top: '28%', left: '75%', transform: 'translateX(-50%)' },
   5: { top: '28%', left: '25%', transform: 'translateX(-50%)' },
   6: { top: '42%', left: '50%', transform: 'translateX(-50%)' },
-  7: { top: '58%', left: '75%', transform: 'translateX(-50%)' },
-  8: { top: '58%', left: '25%', transform: 'translateX(-50%)' },
-  9: { top: '75%', left: '50%', transform: 'translateX(-50%)' },
-  10: { top: '90%', left: '50%', transform: 'translateX(-50%)' },
+  7: { top: '50%', left: '75%', transform: 'translateX(-50%)' },
+  8: { top: '50%', left: '25%', transform: 'translateX(-50%)' },
+  9: { top: '65%', left: '50%', transform: 'translateX(-50%)' },
+  10: { top: '80%', left: '50%', transform: 'translateX(-50%)' },
 };
 
 // Connections between nodes for drawing lines
@@ -57,7 +72,6 @@ const connections = [
   [3, 5],
   [4, 5], [4, 6], [4, 7],
   [5, 6], [5, 8],
-  [6, 7], [6, 8],
   [7, 8], [7, 9],
   [8, 9],
   [9, 10],
@@ -94,7 +108,11 @@ export default function TreeEditPage() {
       .from('trees')
       .select(`
         *,
-        nodes!fk_nodes_tree_id (*)
+        nodes!fk_nodes_tree_id (*),
+        templates (
+          *,
+          template_nodes (*)
+        )
       `)
       .eq('id', treeId)
       .single();
@@ -259,7 +277,7 @@ export default function TreeEditPage() {
       {/* ヘッダー */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-3">
+          <div className="flex justify-between items-center py-1">
             {/* 戻るボタン */}
             <button className="flex items-center text-gray-600 hover:text-blue-600" onClick={() => router.back()}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
@@ -296,25 +314,27 @@ export default function TreeEditPage() {
               style={nodePositions[node.position]}
               onClick={() => handleNodeClick(node)}
             >
-              <span className="node-text text-sm font-medium pointer-events-none text-gray-400">
-  {defaultNodePlaceholders[node.position - 1]}
-</span>
+              <span className={`node-text text-sm font-medium pointer-events-none ${node.title && node.title.trim().length > 0 ? 'text-gray-800' : 'text-gray-400'}`}>
+                {node.title || (tree.templates?.template_nodes.find(tn => tn.position === node.position)?.title) || defaultNodePlaceholders[node.position - 1]}
+              </span>
             </div>
           ))}
         </div>
       </main>
 
       {/* Edit Node Modal */}
-      {isNodeModalOpen && selectedNode && (
-        <EditNodeModal
-          isOpen={isNodeModalOpen}
-          onClose={() => setIsNodeModalOpen(false)}
-          node={selectedNode}
-          onSave={handleModalSave}
-          placeholder={defaultNodePlaceholders[selectedNode.position - 1]}
-          nodeDetailsPlaceholder={selectedNode.details_placeholder} // Pass details_placeholder
-        />
-      )}
+      {isNodeModalOpen && selectedNode && (() => {
+        const templateNode = tree.templates?.template_nodes.find(tn => tn.position === selectedNode.position) || null;
+        return (
+          <EditNodeModal
+            isOpen={isNodeModalOpen}
+            onClose={() => setIsNodeModalOpen(false)}
+            node={selectedNode}
+            templateNode={templateNode}
+            onSave={handleModalSave}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -323,16 +343,18 @@ interface EditNodeModalProps {
   isOpen: boolean;
   onClose: () => void;
   node: Node;
+  templateNode: TemplateNode | null;
   onSave: (title: string, details: string) => void;
-  placeholder: string;
-  nodeDetailsPlaceholder: string | null; // Added
 }
 
-function EditNodeModal({ isOpen, onClose, node, onSave, placeholder, nodeDetailsPlaceholder }: EditNodeModalProps) {
-  const [title, setTitle] = useState(node.title);
+function EditNodeModal({ isOpen, onClose, node, templateNode, onSave }: EditNodeModalProps) {
+  const [title, setTitle] = useState(node.title || '');
   const [details, setDetails] = useState(node.details || '');
   const supabase = createClient();
   const router = useRouter();
+
+  const titlePlaceholder = templateNode?.title || defaultNodePlaceholders[node.position - 1];
+  const detailsPlaceholder = templateNode?.details_placeholder || '';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -340,16 +362,15 @@ function EditNodeModal({ isOpen, onClose, node, onSave, placeholder, nodeDetails
   };
 
   const handleCreateChildTree = async () => {
-    // Save the current node's changes first
     await onSave(title, details);
 
-    const { data: { user } = { user: null } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       alert('ユーザーが認証されていません。');
       return;
     }
 
-    const newTreeTitle = title || placeholder;
+    const newTreeTitle = title || titlePlaceholder;
     const { data, error } = await supabase
       .from('trees')
       .insert({
@@ -371,14 +392,11 @@ function EditNodeModal({ isOpen, onClose, node, onSave, placeholder, nodeDetails
         details: null,
       }));
 
-      const { error: nodesError } = await supabase
-        .from('nodes')
-        .insert(nodesToInsert);
+      const { error: nodesError } = await supabase.from('nodes').insert(nodesToInsert);
 
       if (nodesError) {
         alert(`ノードの作成に失敗しました: ${nodesError.message}`);
-      }
-      else {
+      } else {
         onClose();
         router.push(`/trees/${newTreeId}/edit`);
       }
@@ -398,7 +416,9 @@ function EditNodeModal({ isOpen, onClose, node, onSave, placeholder, nodeDetails
               type="text"
               id="node-text-input"
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500"
-              onChange={(e) => setTitle(e.target.value)}              placeholder={placeholder}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={titlePlaceholder}
             />
           </div>
           <div>
@@ -406,21 +426,19 @@ function EditNodeModal({ isOpen, onClose, node, onSave, placeholder, nodeDetails
             <textarea
               id="node-details-input"
               rows={4}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500" 
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500"
               value={details}
               onChange={(e) => setDetails(e.target.value)}
-              placeholder={nodeDetailsPlaceholder || ''} // Use nodeDetailsPlaceholder
+              placeholder={detailsPlaceholder}
             ></textarea>
           </div>
           <div className="mt-6 flex justify-between items-center">
-            {/* 新しい樹を作成ボタン */}
             <button type="button" onClick={handleCreateChildTree} className="flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
               新しい樹を作成
             </button>
-            {/* 右側のボタン群 */}
             <div className="space-x-3">
               <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">キャンセル</button>
               <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">保存</button>

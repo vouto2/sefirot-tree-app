@@ -154,7 +154,9 @@ export default function TreesPage() {
                 onClick={() => handleCardClick(tree.id)}
               >
                 <div className="p-5 flex-grow">
-                  <h3 className="text-lg font-bold text-gray-900">{tree.title}</h3>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {tree.title ? tree.title : <span className="text-gray-400">名称未設定</span>}
+                  </h3>
                   <p className="text-xs text-gray-500 mt-1 sm:hidden">最終更新: {new Date(tree.updated_at).toLocaleDateString()}</p>
                 </div>
                 <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex justify-end relative"> 
