@@ -435,16 +435,20 @@ function EditNodeModal({ isOpen, onClose, node, templateNode, onSave }: EditNode
               placeholder={detailsPlaceholder}
             ></textarea>
           </div>
-          <div className="mt-6 flex justify-between items-center">
-            <button type="button" onClick={handleCreateChildTree} className="flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              新しい樹を作成
-            </button>
-            <div className="space-x-3">
-              <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">キャンセル</button>
-              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">保存</button>
+          <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center space-y-3 sm:space-y-0">
+            {/* 新しい樹を作成ボタン */}
+            <div className="w-full sm:w-auto order-2 sm:order-1">
+              <button type="button" onClick={handleCreateChildTree} className="w-full flex items-center justify-center text-sm text-blue-600 hover:text-blue-800 font-medium px-4 py-2 rounded-md border border-blue-600">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                新しい樹を作成
+              </button>
+            </div>
+            {/* キャンセルと保存ボタン */}
+            <div className="flex justify-center sm:justify-end space-x-4 w-full sm:w-auto order-1 sm:order-2">
+              <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 flex-grow">キャンセル</button>
+              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex-grow">保存</button>
             </div>
           </div>
         </form>
