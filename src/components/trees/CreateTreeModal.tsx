@@ -106,15 +106,10 @@ export default function CreateTreeModal({ isOpen, onClose, onTreeCreated, initia
     })) || [];
 
     if (nodesToInsert.length === 0) {
-      const defaultNodeTitles = [
-        'ケテル (王冠)', 'コクマー (知恵)', 'ビナー (理解)', 'ケセド (慈悲)', 'ゲブラー (峻厳)',
-        'ティファレト (美)', 'ネツァク (勝利)', 'ホド (栄光)', 'イェソド (基礎)', 'マルクト (王国)',
-      ];
       for (let i = 0; i < 10; i++) {
         nodesToInsert.push({
-          title: defaultNodeTitles[i],
+          title: '',
           details: null,
-          details_placeholder: null, // Add details_placeholder for default nodes
           position: i + 1,
           tree_id: treeData.id,
         });

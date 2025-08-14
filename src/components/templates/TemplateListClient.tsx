@@ -8,7 +8,7 @@ import SelectTemplateForTreeModal from './SelectTemplateForTreeModal'
 interface Template {
   id: string
   name: string
-  description: string | null // Changed
+  description?: string | null // Changed
   created_at: string
   // updated_at: string // Removed as per new DB schema
 }
@@ -49,8 +49,12 @@ export default function TemplateListClient({ initialTemplates }: TemplateListCli
 
       setTemplates(templates.filter((template) => template.id !== id))
       router.refresh()
-    } catch (error: any) {
-      alert(error.message)
+    } catch (error) {
+      if (error instanceof Error) {
+        alert(error.message)
+      } else {
+        alert('An unknown error occurred')
+      }
     }
   }
 

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 interface Template {
   id: string
   name: string
-  description: string | null // Added description
+  description?: string | null // Added description
 }
 
 interface SelectTemplateForTreeModalProps {

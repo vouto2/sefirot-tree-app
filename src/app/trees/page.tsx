@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter, useSearchParams } from 'next/navigation'; // Import useSearchParams
+import { useRouter, useSearchParams } from 'next/navigation';
 import CreateTreeModal from '@/components/trees/CreateTreeModal';
 
 interface Tree {
@@ -12,7 +12,7 @@ interface Tree {
   updated_at: string;
 }
 
-export default function TreesPage() {
+function TreesClientView() {
   const [trees, setTrees] = useState<Tree[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +20,7 @@ export default function TreesPage() {
   const [showDropdownId, setShowDropdownId] = useState<string | null>(null);
   const supabase = createClient();
   const router = useRouter();
-  const searchParams = useSearchParams(); // Initialize useSearchParams
+  const searchParams = useSearchParams();
 
   const fetchTrees = useCallback(async () => {
     setLoading(true);
@@ -32,8 +32,6 @@ export default function TreesPage() {
       return;
     }
 
-    console.log('Fetching trees for user ID:', user.id);
-
     const { data, error } = await supabase
       .from('trees')
       .select('id, title, created_at, updated_at')
@@ -41,10 +39,8 @@ export default function TreesPage() {
 
     if (error) {
       setError(`ツリーの取得中にエラーが発生しました: ${error.message}`);
-      console.error('Error fetching trees:', error);
     } else {
       setTrees(data || []);
-      console.log('Fetched trees data:', data);
     }
     setLoading(false);
   }, [supabase, router]);
@@ -57,10 +53,8 @@ export default function TreesPage() {
     const templateId = searchParams.get('templateId');
     if (templateId) {
       setIsCreateModalOpen(true);
-      // Optionally, remove the templateId from the URL after opening the modal
-      // router.replace('/trees', undefined, { shallow: true });
     }
-  }, [searchParams]); // Depend on searchParams
+  }, [searchParams]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -87,10 +81,6 @@ export default function TreesPage() {
     router.push(`/trees/${id}/edit`);
   };
 
-  const handleUserMenuClick = () => {
-    alert('ユーザーメニューがクリックされました。');
-  };
-
   const handleDeleteTree = async (treeId: string) => {
     if (window.confirm('本当にこの樹を削除しますか？関連するノードもすべて削除されます。')) {
       setLoading(true);
@@ -103,12 +93,15 @@ export default function TreesPage() {
 
         if (error) {
           setError(`樹の削除中にエラーが発生しました: ${error.message}`);
-          console.error('Error deleting tree:', error);
         } else {
           fetchTrees();
         }
-      } catch (err: any) {
-        setError(`予期せぬエラーが発生しました: ${err.message}`);
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(`予期せぬエラーが発生しました: ${err.message}`);
+        } else {
+          setError('予期せぬエラーが発生しました');
+        }
         console.error('Unexpected error during tree deletion:', err);
       } finally {
         setLoading(false);
@@ -127,11 +120,9 @@ export default function TreesPage() {
 
   return (
     <div className="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
-      {/* メインコンテンツ */}
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900">あなたの「生命の樹」一覧</h2>
-          {/* 新規作成ボタン (PCのみ表示) */}
           <button
             className="hidden sm:flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm"
             onClick={handleCreateNew}
@@ -157,7 +148,7 @@ export default function TreesPage() {
                   <h3 className="text-lg font-bold text-gray-900">
                     {tree.title ? tree.title : <span className="text-gray-400">名称未設定</span>}
                   </h3>
-                  <p className="text-xs text-gray-500 mt-1 sm:hidden">最終更新: {new Date(tree.updated_at).toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-500 mt-1">最終更新: {new Date(tree.updated_at).toLocaleDateString()}</p>
                 </div>
                 <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex justify-end relative"> 
                   <button
@@ -191,7 +182,6 @@ export default function TreesPage() {
         )}
       </main>
 
-      {/* フッター (モバイルのみ表示) */}
       <footer className="sm:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-sm border-t border-gray-200">
         <button
           className="w-full flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg"
@@ -208,8 +198,16 @@ export default function TreesPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onTreeCreated={handleTreeCreated}
-        initialTemplateId={searchParams.get('templateId') || undefined} // Pass templateId
+        initialTemplateId={searchParams.get('templateId') || undefined}
       />
     </div>
+  );
+}
+
+export default function TreesPage() {
+  return (
+    <Suspense fallback={<div>読み込み中...</div>}>
+      <TreesClientView />
+    </Suspense>
   );
 }
